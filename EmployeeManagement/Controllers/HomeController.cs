@@ -95,8 +95,65 @@ namespace EmployeeManagement.Controllers
 
             return View();
         }
-   
-       
+
+        [HttpGet]
+        public IActionResult Edit(int id)
+        {
+            Employee employee = _employeeRepository.GetEmployee(id);
+            EmployeeEditViewModel employeeEditViewModel = new EmployeeEditViewModel
+            {
+                Id = employee.Id,
+                Name = employee.Name,
+                Email = employee.Email,
+                Department = employee.Department,
+                ExistingPhotoPath = employee.PhotoPath
+            };
+            return View(employeeEditViewModel);
+            
+        }
+
+        [HttpPost]
+        public IActionResult Edit(EmployeeEditViewModel vModel)
+        {
+            if (ModelState.IsValid)
+            {
+                Employee employee = _employeeRepository.GetEmployee(vModel.Id);
+                // Update the employee object with the data in the model object
+                employee.Name = vModel.Name;
+                employee.Email = vModel.Email;
+                employee.Department = vModel.Department;
+                string uniqueFileName = ProcessUploadedFile(vModel);
+
+                Employee newEmployee = new Employee
+                {
+                    Name = vModel.Name,
+                    Email = vModel.Email,
+                    Department = vModel.Department,
+                    PhotoPath = uniqueFileName
+                };
+
+                _employeeRepository.Add(newEmployee);
+                return RedirectToAction("details", new { id = newEmployee.Id });
+            }
+
+            return View();
+        }
+
+        private string ProcessUploadedFile(EmployeeEditViewModel vModel)
+        {
+            string uniqueFileName = null;
+
+            if (vModel.Photo != null)
+            {
+                string uploadsFolder = Path.Combine(hostingEnvironment.WebRootPath, "images");
+                uniqueFileName = Guid.NewGuid().ToString() + "_" + vModel.Photo.FileName;
+                string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                vModel.Photo.CopyTo(new FileStream(filePath, FileMode.Create));
+            }
+
+            return uniqueFileName;
+        }
+
         public IActionResult Privacy()
         {
             return View();

@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using EmployeeManagement.Models;
 using EmployeeManagement.ViewModels;
+using Microsoft.AspNetCore.Hosting;
+using System.IO;
 
 namespace EmployeeManagement.Controllers
 {
@@ -14,11 +16,13 @@ namespace EmployeeManagement.Controllers
     {
         private readonly ILogger<HomeController> _logger;
         private readonly IEmployeeRepository _employeeRepository;
+        private readonly IWebHostEnvironment hostingEnvironment;
 
-        public HomeController(ILogger<HomeController> logger, IEmployeeRepository employeeRepository)
+        public HomeController(ILogger<HomeController> logger, IEmployeeRepository employeeRepository, IWebHostEnvironment hostingEnvironment)
         {
             _logger = logger;
             this._employeeRepository = employeeRepository;
+            this.hostingEnvironment = hostingEnvironment;
         }
 
         public ViewResult Index()
@@ -47,16 +51,34 @@ namespace EmployeeManagement.Controllers
         }
 
         [HttpPost]
-        public IActionResult Create(Employee employee)
+        public IActionResult Create(EmployeeCreateViewModel vModel)
         {
             if (ModelState.IsValid)
             {
-                var newEmployee = _employeeRepository.Add(employee);
-               // return RedirectToAction("details", new { id = newEmployee.Id });
+                string uniqueFileName = null;
+                if (vModel.Photo != null)
+                {
+                    string uploadsFolder = Path.Combine(hostingEnvironment.WebRootPath, "images");
+                    uniqueFileName = Guid.NewGuid().ToString() + "_" + vModel.Photo.FileName;
+                    string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                    vModel.Photo.CopyTo(new FileStream(filePath, FileMode.Create));
+                }
+                Employee newEmployee = new Employee
+                {
+                    Name = vModel.Name,
+                    Email = vModel.Email,
+                    Department = vModel.Department,
+                    PhotoPath = uniqueFileName
+                };
+
+                _employeeRepository.Add(newEmployee);
+                return RedirectToAction("details", new { id = newEmployee.Id });
             }
 
             return View();
         }
+   
+       
         public IActionResult Privacy()
         {
             return View();

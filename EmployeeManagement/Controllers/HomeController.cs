@@ -56,15 +56,7 @@ namespace EmployeeManagement.Controllers
         {
             if (ModelState.IsValid)
             {
-                string uniqueFileName = null;
-                
-                if (vModel.Photo != null)
-                {
-                    string uploadsFolder = Path.Combine(hostingEnvironment.WebRootPath, "images");
-                    uniqueFileName = Guid.NewGuid().ToString() + "_" + vModel.Photo.FileName;
-                    string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-                    vModel.Photo.CopyTo(new FileStream(filePath, FileMode.Create));
-                }
+                string uniqueFileName = ProcessUploadedFile(vModel);
                
                 /*for multiple images*/
                 /*
@@ -118,28 +110,29 @@ namespace EmployeeManagement.Controllers
             if (ModelState.IsValid)
             {
                 Employee employee = _employeeRepository.GetEmployee(vModel.Id);
-                // Update the employee object with the data in the model object
                 employee.Name = vModel.Name;
                 employee.Email = vModel.Email;
                 employee.Department = vModel.Department;
-                string uniqueFileName = ProcessUploadedFile(vModel);
 
-                Employee newEmployee = new Employee
+                if (vModel.Photo != null)
                 {
-                    Name = vModel.Name,
-                    Email = vModel.Email,
-                    Department = vModel.Department,
-                    PhotoPath = uniqueFileName
-                };
+                    if (vModel.ExistingPhotoPath != null)
+                    {
+                        string filePath = Path.Combine(hostingEnvironment.WebRootPath,
+                            "images", vModel.ExistingPhotoPath);
+                        System.IO.File.Delete(filePath);
+                    }
+                    employee.PhotoPath = ProcessUploadedFile(vModel);
+                }
 
-                _employeeRepository.Add(newEmployee);
-                return RedirectToAction("details", new { id = newEmployee.Id });
+                _employeeRepository.Update(employee);
+                return RedirectToAction("index");
             }
 
             return View();
         }
 
-        private string ProcessUploadedFile(EmployeeEditViewModel vModel)
+        private string ProcessUploadedFile(EmployeeCreateViewModel vModel)
         {
             string uniqueFileName = null;
 
@@ -148,7 +141,11 @@ namespace EmployeeManagement.Controllers
                 string uploadsFolder = Path.Combine(hostingEnvironment.WebRootPath, "images");
                 uniqueFileName = Guid.NewGuid().ToString() + "_" + vModel.Photo.FileName;
                 string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-                vModel.Photo.CopyTo(new FileStream(filePath, FileMode.Create));
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    vModel.Photo.CopyTo(fileStream);
+                }
+                
             }
 
             return uniqueFileName;

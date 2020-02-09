@@ -34,10 +34,17 @@ namespace EmployeeManagement.Controllers
 
         public ViewResult Details(int? id)
         {
+            Employee employee = _employeeRepository.GetEmployee(id.Value);
+
+            if (employee == null)
+            {
+                Response.StatusCode = 404;
+                return View("EmployeeNotFound", id);
+            }
 
             var HomeDetailsViewModel = new HomeDetailsViewModel()
             {
-                Employee = _employeeRepository.GetEmployee(id ?? 1),
+                Employee = employee,
                 PageTitle = "Employee Details"
             };
             return View(HomeDetailsViewModel);
@@ -57,7 +64,6 @@ namespace EmployeeManagement.Controllers
             if (ModelState.IsValid)
             {
                 string uniqueFileName = ProcessUploadedFile(vModel);
-               
                 /*for multiple images*/
                 /*
                 if (vModel.Photos != null && vModel.Photos.Count > 0)
@@ -72,7 +78,6 @@ namespace EmployeeManagement.Controllers
                     }
                 }
                 */
-
                 Employee newEmployee = new Employee
                 {
                     Name = vModel.Name,
@@ -101,7 +106,6 @@ namespace EmployeeManagement.Controllers
                 ExistingPhotoPath = employee.PhotoPath
             };
             return View(employeeEditViewModel);
-            
         }
 
         [HttpPost]
@@ -128,7 +132,6 @@ namespace EmployeeManagement.Controllers
                 _employeeRepository.Update(employee);
                 return RedirectToAction("index");
             }
-
             return View();
         }
 
@@ -145,9 +148,7 @@ namespace EmployeeManagement.Controllers
                 {
                     vModel.Photo.CopyTo(fileStream);
                 }
-                
             }
-
             return uniqueFileName;
         }
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using EmployeeManagement.Models;
 using EmployeeManagement.ViewModels;
@@ -14,7 +15,8 @@ using Microsoft.Extensions.Logging;
 
 namespace EmployeeManagement.Controllers
 {
-    [Authorize(Roles = "Admin")]
+    //[Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminRolePolicy")]
     public class AdministrationController : Controller
     {
         private readonly RoleManager<IdentityRole> roleManager;
@@ -28,6 +30,13 @@ namespace EmployeeManagement.Controllers
             this.roleManager = roleManager;
             this.userManager = userManager;
             this.logger = logger;
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult AccessDenied()
+        {
+            return View();
         }
 
         [HttpGet]
@@ -72,6 +81,7 @@ namespace EmployeeManagement.Controllers
         }
 
         [HttpGet]
+        [Authorize(Policy = "EditRolePolicy")]
         public async Task<IActionResult> EditRole(string id)
         {
             // Find the role by Role ID
@@ -112,6 +122,7 @@ namespace EmployeeManagement.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "EditRolePolicy")]
         public async Task<IActionResult> EditRole(EditRoleViewModel model)
         {
             var role = await roleManager.FindByIdAsync(model.Id);
@@ -222,7 +233,9 @@ namespace EmployeeManagement.Controllers
             return RedirectToAction("EditRole", new { Id = roleId });
         }
 
+        
         [HttpPost]
+        [Authorize(Policy = "DeleteRolePolicy")]
         public async Task<IActionResult> DeleteRole(string id)
         {
             var role = await roleManager.FindByIdAsync(id);
@@ -438,29 +451,66 @@ namespace EmployeeManagement.Controllers
                 return View("NotFound");
             }
 
-            var model = new List<UserClaimsViewModel>();
+            var existingUserClaims = await userManager.GetClaimsAsync(user);
 
-            foreach (var role in roleManager.Roles)
+            var model = new UserClaimsViewModel
             {
-                var userRolesViewModel = new UserRolesViewModel
+                UserId = userId
+            };
+
+            foreach (Claim claim in ClaimsStore.AllClaims)
+            {
+                UserClaim userClaim = new UserClaim
                 {
-                    RoleId = role.Id,
-                    RoleName = role.Name
+                    ClaimType = claim.Type
                 };
 
-                if (await userManager.IsInRoleAsync(user, role.Name))
+                // If the user has the claim, set IsSelected property to true, so the checkbox
+                // next to the claim is checked on the UI
+                if (existingUserClaims.Any(c => c.Type == claim.Type))
                 {
-                    userRolesViewModel.IsSelected = true;
-                }
-                else
-                {
-                    userRolesViewModel.IsSelected = false;
+                    userClaim.IsSelected = true;
                 }
 
-                model.Add(userRolesViewModel);
+                model.Cliams.Add(userClaim);
             }
 
             return View(model);
+
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ManageUserClaims(UserClaimsViewModel model)
+        {
+            var user = await userManager.FindByIdAsync(model.UserId);
+
+            if (user == null)
+            {
+                ViewBag.ErrorMessage = $"User with Id = {model.UserId} cannot be found";
+                return View("NotFound");
+            }
+
+            // Get all the user existing claims and delete them
+            var claims = await userManager.GetClaimsAsync(user);
+            var result = await userManager.RemoveClaimsAsync(user, claims);
+
+            if (!result.Succeeded)
+            {
+                ModelState.AddModelError("", "Cannot remove user existing claims");
+                return View(model);
+            }
+
+            // Add all the claims that are selected on the UI
+            result = await userManager.AddClaimsAsync(user,
+                model.Cliams.Where(c => c.IsSelected).Select(c => new Claim(c.ClaimType, c.ClaimType)));
+
+            if (!result.Succeeded)
+            {
+                ModelState.AddModelError("", "Cannot add selected claims to user");
+                return View(model);
+            }
+
+            return RedirectToAction("EditUser", new { Id = model.UserId });
         }
 
     }

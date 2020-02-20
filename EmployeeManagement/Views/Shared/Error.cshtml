@@ -3,12 +3,11 @@
     ViewData["Title"] = "Error";
 }
 
-<h1 class="text-danger">Error</h1>
-<h3>
-    An occured while processing your request. The support
-    team is notified and we are working on the fix
-</h3>
-<h5>Please contact us on Alaa@gmail.com</h5>
+<h1 class="text-danger">@ViewData["Title"]</h1>
+
+    <h1 class="text-danger">@ViewData["ErrorTitle"]</h1>
+    <h6 class="text-danger">@ViewData["ErrorMessage"]</h6>
+
 <hr />
 <!--
 <h3>Exception Details:</h3>

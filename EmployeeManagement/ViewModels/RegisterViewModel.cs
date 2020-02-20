@@ -13,8 +13,7 @@ namespace EmployeeManagement.ViewModels
         [Required]
         [EmailAddress]
         [Remote(action: "IsEmailInUse", controller: "Account")]
-        [ValidEmailDomain(allowedDomain:"Alaa.com", 
-            ErrorMessage = "Email domain must be Alaa.com")]
+       // [ValidEmailDomain(allowedDomain:"Alaa.com", ErrorMessage = "Email domain must be Alaa.com")]
         public string Email { get; set; }
 
         [Required]

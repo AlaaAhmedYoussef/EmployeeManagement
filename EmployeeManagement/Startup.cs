@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using EmployeeManagement.Models;
+using EmployeeManagement.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -26,6 +27,16 @@ namespace EmployeeManagement
 
         public IConfiguration Configuration { get; }
 
+        /*
+        //function used as delegate for AddAuthorization policy
+        private bool AuthorizeAccess(AuthorizationHandlerContext context)
+        {
+            return context.User.IsInRole("Admin") &&
+                    context.User.HasClaim(claim => claim.Type == "Edit Role" && claim.Value == "true") ||
+                    context.User.IsInRole("Super Admin");
+        }
+        */
+
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
@@ -46,26 +57,46 @@ namespace EmployeeManagement
                 })
                 .AddXmlSerializerFormatters();
 
+            services.AddAuthentication().AddGoogle(options =>
+            {
+                options.ClientId = "27832508271-ksv03dafi1oevh33eghqu2thflg877d7.apps.googleusercontent.com";
+                options.ClientSecret = "YMvLN40K_6FR6Bow5-MTA6QI";
+            });
+
             services.ConfigureApplicationCookie(options =>
             {
                 options.AccessDeniedPath = new PathString("/Administration/AccessDenied");
             });
 
+            services.AddSingleton<IAuthorizationHandler, CanEditOnlyOtherAdminRolesAndClaimsHandler>();
+            services.AddSingleton<IAuthorizationHandler, SuperAdminHandler>();
+            services.AddHttpContextAccessor();
+
             services.AddAuthorization(options =>
             {
-                options.AddPolicy("DeleteRolePolicy",
-                    policy => policy.RequireClaim("Delete Role")
-                                    //.RequireClaim("Create Role")
-                                    );
-
+                 options.AddPolicy("DeleteRolePolicy",
+                     policy => policy.RequireClaim("Delete Role")
+                                     //.RequireClaim("Create Role")
+                                     );
+                
+                /*
                 options.AddPolicy("EditRolePolicy",
-                    policy => policy.RequireClaim("Edit Role"));
+                    policy => policy.RequireClaim("Edit Role", "true"));
+                */
+                /*
+                options.AddPolicy("EditRolePolicy", policy =>
+                    policy.RequireAssertion(context => AuthorizeAccess(context)));
+                */
+
+                options.AddPolicy("EditRolePolicy", policy =>
+                    policy.AddRequirements(new ManageAdminRolesAndClaimsRequirement()));
 
                 options.AddPolicy("AdminRolePolicy",
                     policy => policy.RequireRole("Admin"));
             });
 
             services.AddScoped<IEmployeeRepository, SQLEmployeeRepository>();
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

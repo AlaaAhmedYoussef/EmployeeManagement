@@ -57,11 +57,18 @@ namespace EmployeeManagement
                 })
                 .AddXmlSerializerFormatters();
 
-            services.AddAuthentication().AddGoogle(options =>
+            services.AddAuthentication()
+            .AddGoogle(options =>
             {
                 options.ClientId = "27832508271-ksv03dafi1oevh33eghqu2thflg877d7.apps.googleusercontent.com";
                 options.ClientSecret = "YMvLN40K_6FR6Bow5-MTA6QI";
-            });
+            })
+            .AddFacebook(options =>
+             {
+                 options.AppId = "645469272693606";
+                 options.AppSecret = "cf4a3bfe78201e21c7a796d1e1d77941";
+             });
+
 
             services.ConfigureApplicationCookie(options =>
             {
